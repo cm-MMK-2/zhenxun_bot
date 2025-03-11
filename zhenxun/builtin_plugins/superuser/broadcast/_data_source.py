@@ -1,22 +1,18 @@
+import asyncio
+import random
+
 from nonebot.adapters import Bot
 import nonebot_plugin_alconna as alc
+from nonebot_plugin_alconna import Image, UniMsg
 from nonebot_plugin_session import EventSession
 
-# from nonebot.adapters.discord import Bot as DiscordBot
-# from nonebot.adapters.dodo import Bot as DodoBot
-# from nonebot.adapters.kaiheila import Bot as KaiheilaBot
-# from nonebot.adapters.onebot.v11 import Bot as v11Bot
-# from nonebot.adapters.onebot.v12 import Bot as v12Bot
-from nonebot_plugin_alconna import Image, UniMsg
-
 from zhenxun.services.log import logger
+from zhenxun.utils.common_utils import CommonUtils
 from zhenxun.utils.message import MessageUtils
 from zhenxun.utils.platform import PlatformUtils
-from zhenxun.utils.common_utils import CommonUtils
 
 
 class BroadcastManage:
-
     @classmethod
     async def send(
         cls, bot: Bot, message: UniMsg, session: EventSession
@@ -43,11 +39,12 @@ class BroadcastManage:
             for group in group_list:
                 try:
                     if not await CommonUtils.task_is_block(
-                        group.group_id,
+                        bot,
                         "broadcast",  # group.channel_id
+                        group.group_id,
                     ):
                         target = PlatformUtils.get_target(
-                            bot, None, group.channel_id or group.group_id
+                            group_id=group.group_id, channel_id=group.channel_id
                         )
                         if target:
                             await MessageUtils.build_message(message_list).send(
@@ -59,6 +56,7 @@ class BroadcastManage:
                                 session=session,
                                 target=f"{group.group_id}:{group.channel_id}",
                             )
+                            await asyncio.sleep(random.randint(1, 3))
                         else:
                             logger.warning("target为空", "广播", session=session)
                 except Exception as e:

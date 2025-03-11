@@ -1,34 +1,35 @@
 import os
 import shutil
+import subprocess
 import tarfile
 import zipfile
-import subprocess
 
 from nonebot.adapters import Bot
 from nonebot.utils import run_sync
 
 from zhenxun.services.log import logger
+from zhenxun.utils.github_utils import GithubUtils
+from zhenxun.utils.github_utils.models import RepoInfo
 from zhenxun.utils.http_utils import AsyncHttpx
 from zhenxun.utils.platform import PlatformUtils
 
 from .config import (
-    DEV_URL,
-    MAIN_URL,
-    TMP_PATH,
-    BASE_PATH,
     BACKUP_PATH,
-    RELEASE_URL,
-    REQ_TXT_FILE,
-    VERSION_FILE,
-    PYPROJECT_FILE,
-    REPLACE_FOLDERS,
+    BASE_PATH,
     BASE_PATH_STRING,
+    DEFAULT_GITHUB_URL,
     DOWNLOAD_GZ_FILE,
     DOWNLOAD_ZIP_FILE,
-    PYPROJECT_LOCK_FILE,
-    REQ_TXT_FILE_STRING,
+    PYPROJECT_FILE,
     PYPROJECT_FILE_STRING,
+    PYPROJECT_LOCK_FILE,
     PYPROJECT_LOCK_FILE_STRING,
+    RELEASE_URL,
+    REPLACE_FOLDERS,
+    REQ_TXT_FILE,
+    REQ_TXT_FILE_STRING,
+    TMP_PATH,
+    VERSION_FILE,
 )
 
 
@@ -117,14 +118,14 @@ def _file_handle(latest_version: str | None):
             shutil.move(src_folder_path, dest_folder_path)
         else:
             logger.debug(f"源文件夹不存在: {src_folder_path}", "检查更新")
+    if tf:
+        tf.close()
     if download_file.exists():
         logger.debug(f"删除下载文件: {download_file}", "检查更新")
         download_file.unlink()
     if extract_path.exists():
         logger.debug(f"删除解压文件夹: {extract_path}", "检查更新")
         shutil.rmtree(extract_path)
-    if tf:
-        tf.close()
     if TMP_PATH.exists():
         shutil.rmtree(TMP_PATH)
     if latest_version:
@@ -154,7 +155,7 @@ class UpdateManage:
         )
 
     @classmethod
-    async def update(cls, bot: Bot, user_id: str, version_type: str) -> str | None:
+    async def update(cls, bot: Bot, user_id: str, version_type: str) -> str:
         """更新操作
 
         参数:
@@ -169,23 +170,19 @@ class UpdateManage:
         cur_version = cls.__get_version()
         url = None
         new_version = None
-        if version_type == "dev":
-            url = DEV_URL
-            new_version = await cls.__get_version_from_branch("dev")
+        repo_info = GithubUtils.parse_github_url(DEFAULT_GITHUB_URL)
+        if version_type in {"main"}:
+            repo_info.branch = version_type
+            new_version = await cls.__get_version_from_repo(repo_info)
             if new_version:
                 new_version = new_version.split(":")[-1].strip()
-        elif version_type == "main":
-            url = MAIN_URL
-            new_version = await cls.__get_version_from_branch("main")
-            if new_version:
-                new_version = new_version.split(":")[-1].strip()
+            url = await repo_info.get_archive_download_urls()
         elif version_type == "release":
             data = await cls.__get_latest_data()
             if not data:
                 return "获取更新版本失败..."
-            url = data.get("tarball_url")
-            new_version = data.get("name")
-            url = (await AsyncHttpx.get(url)).headers.get("Location")  # type: ignore
+            new_version = data.get("name", "")
+            url = await repo_info.get_release_source_download_urls_tgz(new_version)
         if not url:
             return "获取版本下载链接失败..."
         if TMP_PATH.exists():
@@ -203,17 +200,18 @@ class UpdateManage:
         download_file = (
             DOWNLOAD_GZ_FILE if version_type == "release" else DOWNLOAD_ZIP_FILE
         )
-        if await AsyncHttpx.download_file(url, download_file):
+        if await AsyncHttpx.download_file(url, download_file, stream=True):
             logger.debug("下载真寻最新版文件完成...", "检查更新")
             await _file_handle(new_version)
+            result = "版本更新完成"
             return (
-                f"版本更新完成\n"
+                f"{result}\n"
                 f"版本: {cur_version} -> {new_version}\n"
                 "请重新启动真寻以完成更新!"
             )
         else:
             logger.debug("下载真寻最新版文件失败...", "检查更新")
-        return None
+        return ""
 
     @classmethod
     def __get_version(cls) -> str:
@@ -247,7 +245,7 @@ class UpdateManage:
         return {}
 
     @classmethod
-    async def __get_version_from_branch(cls, branch: str) -> str:
+    async def __get_version_from_repo(cls, repo_info: RepoInfo) -> str:
         """从指定分支获取版本号
 
         参数:
@@ -256,11 +254,11 @@ class UpdateManage:
         返回:
             str: 版本号
         """
-        version_url = f"https://raw.githubusercontent.com/HibiKier/zhenxun_bot/{branch}/__version__"
+        version_url = await repo_info.get_raw_download_urls(path="__version__")
         try:
             res = await AsyncHttpx.get(version_url)
             if res.status_code == 200:
                 return res.text.strip()
         except Exception as e:
-            logger.error(f"获取 {branch} 分支版本失败", e=e)
+            logger.error(f"获取 {repo_info.branch} 分支版本失败", e=e)
         return "未知版本"

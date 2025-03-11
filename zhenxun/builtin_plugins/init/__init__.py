@@ -3,9 +3,9 @@ from pathlib import Path
 import nonebot
 from nonebot.adapters import Bot
 
+from zhenxun.models.group_console import GroupConsole
 from zhenxun.services.log import logger
 from zhenxun.utils.platform import PlatformUtils
-from zhenxun.models.group_console import GroupConsole
 
 nonebot.load_plugins(str(Path(__file__).parent.resolve()))
 
@@ -39,5 +39,5 @@ async def _(bot: Bot):
         await GroupConsole.filter(group_id__in=update_id).update(group_flag=1)
     logger.debug(
         f"更新Bot: {bot.self_id} 的群认证完成，共创建 {len(create_list)} 条数据，"
-        "共修改 {len(update_id)} 条数据..."
+        f"共修改 {len(update_id)} 条数据..."
     )

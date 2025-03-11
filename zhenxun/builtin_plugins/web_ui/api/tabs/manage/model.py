@@ -1,6 +1,5 @@
-from typing import Literal
-
-from pydantic import BaseModel
+from nonebot.compat import model_dump
+from pydantic import BaseModel, Field
 
 from zhenxun.utils.enum import RequestType
 
@@ -31,6 +30,8 @@ class Task(BaseModel):
     """被动中文名称"""
     status: bool
     """状态"""
+    is_super_block: bool
+    """是否超级用户禁用"""
 
 
 class Plugin(BaseModel):
@@ -171,9 +172,9 @@ class ReqResult(BaseModel):
     好友/群组请求列表
     """
 
-    friend: list[FriendRequestResult] = []
+    friend: list[FriendRequestResult] = Field(default_factory=list)
     """好友请求列表"""
-    group: list[GroupRequestResult] = []
+    group: list[GroupRequestResult] = Field(default_factory=list)
     """群组请求列表"""
 
 
@@ -232,7 +233,6 @@ class GroupDetail(BaseModel):
 
 
 class MessageItem(BaseModel):
-
     type: str
     """消息类型"""
     msg: str
@@ -257,8 +257,11 @@ class Message(BaseModel):
     ava_url: str
     """用户头像"""
 
+    def to_dict(self, **kwargs):
+        return model_dump(self, **kwargs)
 
-class SendMessage(BaseModel):
+
+class SendMessageParam(BaseModel):
     """
     发送消息
     """

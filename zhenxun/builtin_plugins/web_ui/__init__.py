@@ -1,27 +1,30 @@
 import asyncio
 import secrets
 
+from fastapi import APIRouter, FastAPI
 import nonebot
-from fastapi import FastAPI, APIRouter
-from nonebot.plugin import PluginMetadata
 from nonebot.log import default_filter, default_format
+from nonebot.plugin import PluginMetadata
 
-from zhenxun.utils.enum import PluginType
-from zhenxun.services.log import logger, logger_
 from zhenxun.configs.config import Config as gConfig
-from zhenxun.configs.utils import RegisterConfig, PluginExtraData
+from zhenxun.configs.utils import PluginExtraData, RegisterConfig
+from zhenxun.services.log import logger, logger_
+from zhenxun.utils.enum import PluginType
 
-from .public import init_public
-from .auth import router as auth_router
 from .api.logs import router as ws_log_routes
 from .api.logs.log_manager import LOG_STORAGE
-from .api.tabs.main import router as main_router
-from .api.tabs.manage import router as manage_router
-from .api.tabs.system import router as system_router
-from .api.tabs.main import ws_router as status_routes
+from .api.menu import router as menu_router
+from .api.tabs.dashboard import router as dashboard_router
 from .api.tabs.database import router as database_router
+from .api.tabs.main import router as main_router
+from .api.tabs.main import ws_router as status_routes
+from .api.tabs.manage import router as manage_router
 from .api.tabs.manage.chat import ws_router as chat_routes
 from .api.tabs.plugin_manage import router as plugin_router
+from .api.tabs.plugin_manage.store import router as store_router
+from .api.tabs.system import router as system_router
+from .auth import router as auth_router
+from .public import init_public
 
 __plugin_meta__ = PluginMetadata(
     name="WebUi",
@@ -58,7 +61,7 @@ __plugin_meta__ = PluginMetadata(
                 default_value=None,
             ),
         ],
-    ).dict(),
+    ).to_dict(),
 )
 
 driver = nonebot.get_driver()
@@ -71,11 +74,14 @@ BaseApiRouter = APIRouter(prefix="/zhenxun/api")
 
 
 BaseApiRouter.include_router(auth_router)
+BaseApiRouter.include_router(store_router)
+BaseApiRouter.include_router(dashboard_router)
 BaseApiRouter.include_router(main_router)
 BaseApiRouter.include_router(manage_router)
 BaseApiRouter.include_router(database_router)
 BaseApiRouter.include_router(plugin_router)
 BaseApiRouter.include_router(system_router)
+BaseApiRouter.include_router(menu_router)
 
 
 WsApiRouter = APIRouter(prefix="/zhenxun/socket")
@@ -108,6 +114,6 @@ async def _():
         app.include_router(BaseApiRouter)
         app.include_router(WsApiRouter)
         await init_public(app)
-        logger.info("<g>API启动成功</g>", "Web UI")
+        logger.info("<g>API启动成功</g>", "WebUi")
     except Exception as e:
-        logger.error("<g>API启动失败</g>", "Web UI", e=e)
+        logger.error("<g>API启动失败</g>", "WebUi", e=e)

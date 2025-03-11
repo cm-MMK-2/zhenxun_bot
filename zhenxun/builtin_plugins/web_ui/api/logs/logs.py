@@ -1,4 +1,4 @@
-from fastapi import APIRouter, WebSocket
+from fastapi import APIRouter
 from loguru import logger
 from nonebot.utils import escape_tag
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
@@ -27,4 +27,3 @@ async def system_logs_realtime(websocket: WebSocket):
         pass
     finally:
         LOG_STORAGE.listeners.remove(log_listener)
-    return

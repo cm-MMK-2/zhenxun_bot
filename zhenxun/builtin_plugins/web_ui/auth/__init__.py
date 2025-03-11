@@ -1,9 +1,10 @@
-import json
 from datetime import timedelta
+import json
 
-import nonebot
+import aiofiles
 from fastapi import APIRouter, Depends
 from fastapi.security import OAuth2PasswordRequestForm
+import nonebot
 
 from zhenxun.configs.config import Config
 
@@ -40,8 +41,8 @@ async def login_get_token(form_data: OAuth2PasswordRequestForm = Depends()):
     token_data["token"].append(access_token)
     if len(token_data["token"]) > 3:
         token_data["token"] = token_data["token"][1:]
-    with open(token_file, "w", encoding="utf8") as f:
-        json.dump(token_data, f, ensure_ascii=False, indent=4)
+    async with aiofiles.open(token_file, "w", encoding="utf8") as f:
+        await f.write(json.dumps(token_data, ensure_ascii=False, indent=4))
     return Result.ok(
         {"access_token": access_token, "token_type": "bearer"}, "欢迎回家, 欧尼酱!"
     )

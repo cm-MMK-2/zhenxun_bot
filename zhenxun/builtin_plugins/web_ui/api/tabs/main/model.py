@@ -1,8 +1,44 @@
-from datetime import datetime
+from typing import Any
 
 from nonebot.adapters import Bot
+from nonebot.compat import model_dump
 from nonebot.config import Config
 from pydantic import BaseModel
+
+
+class BotManageUpdateParam(BaseModel):
+    """bot更新参数"""
+
+    bot_id: str
+    """bot id"""
+    block_plugins: list[str]
+    """禁用插件"""
+    block_tasks: list[str]
+    """禁用被动"""
+
+
+class BotStatusParam(BaseModel):
+    """bot状态参数"""
+
+    bot_id: str
+    """bot id"""
+    status: bool
+    """状态"""
+
+
+class BotBlockModule(BaseModel):
+    """bot禁用模块参数"""
+
+    bot_id: str
+    """bot id"""
+    block_plugins: list[str]
+    """禁用插件"""
+    block_tasks: list[str]
+    """禁用被动"""
+    all_plugins: list[dict[str, Any]]
+    """所有插件"""
+    all_tasks: list[dict[str, Any]]
+    """所有被动"""
 
 
 class SystemStatus(BaseModel):
@@ -20,8 +56,6 @@ class BaseInfo(BaseModel):
     基础信息
     """
 
-    bot: Bot
-    """Bot"""
     self_id: str
     """SELF ID"""
     nickname: str
@@ -36,21 +70,15 @@ class BaseInfo(BaseModel):
     """今日 累计接收消息"""
     connect_time: int = 0
     """连接时间"""
-    connect_date: datetime | None = None
+    connect_date: str | None = None
     """连接日期"""
-
-    plugin_count: int = 0
-    """加载插件数量"""
-    success_plugin_count: int = 0
-    """加载成功插件数量"""
-    fail_plugin_count: int = 0
-    """加载失败插件数量"""
+    connect_count: int = 0
+    """连接次数"""
+    status: bool = False
+    """全局状态"""
 
     is_select: bool = False
     """当前选择"""
-
-    config: Config | None = None
-    """nb配置"""
     day_call: int = 0
     """今日调用插件次数"""
     version: str = "unknown"
@@ -59,8 +87,20 @@ class BaseInfo(BaseModel):
     class Config:
         arbitrary_types_allowed = True
 
+    def to_dict(self, **kwargs):
+        return model_dump(self, **kwargs)
 
-class ChatHistoryCount(BaseModel):
+
+class TemplateBaseInfo(BaseInfo):
+    """
+    基础信息
+    """
+
+    bot: Bot
+    """bot"""
+
+
+class QueryCount(BaseModel):
     """
     聊天记录数量
     """
@@ -103,3 +143,10 @@ class HotPlugin(BaseModel):
     """插件名称"""
     count: int
     """调用次数"""
+
+
+class NonebotData(BaseModel):
+    config: Config
+    """nb配置"""
+    run_time: int
+    """运行时间"""
